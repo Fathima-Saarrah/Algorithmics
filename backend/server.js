@@ -9,8 +9,20 @@ const BlockedIP = require("./models/blockedModel");
 const app = express();
 
 // Middleware
-app.use(cors());
+app.use(cors({
+  origin: "*",
+  methods: ["GET", "POST","PUT","DELETE"],
+  allowedHeaders: ["Content-Type"],
+  credentials: true
+}));
 app.use(express.json());
+
+app.use((req, res, next) => {
+  res.header("Access-Control-Allow-Origin", "*");
+  res.header("Access-Control-Allow-Headers", "*");
+  res.header("Access-Control-Allow-Methods", "*");
+  next();
+});
 
 // 🔥 Connect MongoDB
 connectDB();
@@ -43,15 +55,7 @@ if (result.isThreat) {
     { upsert: true }
   );
 }
-    // 🚨 SQL Injection Detection
-    if (log.payload && log.payload.includes("OR 1=1")) {
-      console.log("⚠️ SQL Injection Detected:", log.ip);
-
-      await BlockedIP.create({
-        ip: log.ip,
-        reason: "SQL Injection Attack"
-      }).catch(() => {});
-    }
+    
 
   } catch (error) {
     console.error("❌ Error inserting log:", error);
@@ -118,7 +122,7 @@ app.get("/logs", async (req, res) => {
 // 🚫 Get blocked IPs
 app.get("/blocked", async (req, res) => {
   try {
-    const blocked = await BlockedIP.find().sort({ blockedAt: -1 });
+    const blocked = await BlockedIP.find().sort({ blocked_at: -1 });
     res.json(blocked);
   } catch (error) {
     res.status(500).json({ message: "Error fetching blocked IPs" });
