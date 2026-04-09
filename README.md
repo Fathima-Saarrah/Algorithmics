@@ -1,2 +1,0 @@
-# Algorithmics
-Hackzion github repo
