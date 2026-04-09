@@ -1,73 +1,46 @@
 const express = require("express");
 const cors = require("cors");
+
 const connectDB = require("./config/db");
-const detectThreat = require("./ai/detection");
-// Models
 const Log = require("./models/logModel");
 const BlockedIP = require("./models/blockedModel");
+const detectThreat = require("./ai/detection");
 
 const app = express();
 
-// Middleware
-app.use(cors({
-  origin: "*",
-  methods: ["GET", "POST","PUT","DELETE"],
-  allowedHeaders: ["Content-Type"],
-  credentials: true
-}));
+app.use(cors());
 app.use(express.json());
 
-app.use((req, res, next) => {
-  res.header("Access-Control-Allow-Origin", "*");
-  res.header("Access-Control-Allow-Headers", "*");
-  res.header("Access-Control-Allow-Methods", "*");
-  next();
-});
-
-// 🔥 Connect MongoDB
+// 🔥 Connect DB
 connectDB();
 
-
-// =========================
-// 🔥 CORE FUNCTION
-// =========================
+// 🔹 Insert Log + AI Detection
 async function insertLog(log) {
   try {
-    // ✅ Save log
     await Log.create(log);
 
-    // =========================
-    // 🧠 DETECTION LOGIC
-    // =========================
-
-    // 🚨 Brute Force Detection
     const result = detectThreat(log);
 
-if (result.isThreat) {
-  console.log(`⚠️ ${result.type} Detected:`, log.ip);
+    if (result.isThreat) {
+      console.log(`⚠️ ${result.type} Detected:`, log.ip);
 
-  await BlockedIP.updateOne(
-    { ip: log.ip },
-    {
-      ip: log.ip,
-      reason: `${result.type} (Confidence: ${result.confidence.toFixed(2)})`
-    },
-    { upsert: true }
-  );
-}
-    
+      await BlockedIP.updateOne(
+        { ip: log.ip },
+        {
+          ip: log.ip,
+          reason: `${result.type} (Confidence: ${result.confidence.toFixed(2)})`
+        },
+        { upsert: true }
+      );
+    }
 
   } catch (error) {
-    console.error("❌ Error inserting log:", error);
+    console.error("Error:", error);
   }
 }
 
+// 🔹 Simulations
 
-// =========================
-// 🎮 SIMULATION ROUTES
-// =========================
-
-// 🔹 Normal Traffic
 app.post("/simulate/normal", async (req, res) => {
   const log = {
     ip: "192.168.1.2",
@@ -77,11 +50,9 @@ app.post("/simulate/normal", async (req, res) => {
   };
 
   await insertLog(log);
-  res.json({ message: "Normal traffic simulated", log });
+  res.json({ message: "Normal traffic simulated" });
 });
 
-
-// 🔹 Brute Force Attack
 app.post("/simulate/bruteforce", async (req, res) => {
   const log = {
     ip: "192.168.1.100",
@@ -91,11 +62,9 @@ app.post("/simulate/bruteforce", async (req, res) => {
   };
 
   await insertLog(log);
-  res.json({ message: "Brute force simulated", log });
+  res.json({ message: "Brute force simulated" });
 });
 
-
-// 🔹 SQL Injection Attack
 app.post("/simulate/sqlinjection", async (req, res) => {
   const log = {
     ip: "192.168.1.50",
@@ -106,33 +75,22 @@ app.post("/simulate/sqlinjection", async (req, res) => {
   };
 
   await insertLog(log);
-  res.json({ message: "SQL Injection simulated", log });
+  res.json({ message: "SQL Injection simulated" });
 });
 
-// 📊 Get all logs
+// 🔹 Fetch APIs
+
 app.get("/logs", async (req, res) => {
-  try {
-    const logs = await Log.find().sort({ createdAt: -1 });
-    res.json(logs);
-  } catch (error) {
-    res.status(500).json({ message: "Error fetching logs" });
-  }
+  const logs = await Log.find().sort({ createdAt: -1 });
+  res.json(logs);
 });
 
-// 🚫 Get blocked IPs
 app.get("/blocked", async (req, res) => {
-  try {
-    const blocked = await BlockedIP.find().sort({ blocked_at: -1 });
-    res.json(blocked);
-  } catch (error) {
-    res.status(500).json({ message: "Error fetching blocked IPs" });
-  }
+  const blocked = await BlockedIP.find();
+  res.json(blocked);
 });
 
-
-// =========================
-// 🚀 START SERVER
-// =========================
+// 🔹 Start Server
 app.listen(5000, "0.0.0.0", () => {
-  console.log("🚀 Server running on network");
+  console.log("🚀 Server running on port 5000");
 });
